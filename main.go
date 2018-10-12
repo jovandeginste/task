@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,7 +17,8 @@ import (
 var (
 	app             = kingpin.New("Task", "Task management").DefaultEnvars()
 	file            = app.Flag("file", "Filename of the tasks.").Required().String()
-	showDone        = app.Flag("show-done", "Show tasks marked as done.").Bool()
+	showDone        = app.Flag("show-done", "Show tasks marked as done.").Short('d').Bool()
+	exportFormat    = app.Flag("format", "Output format").Short('f').Default("table").Enum("table", "json")
 	initFile        = app.Command("init", "Initialize the task file")
 	stats           = app.Command("stats", "Show a bunch of statistics about the tasks")
 	show            = app.Command("show", "Show tasks")
@@ -121,6 +123,20 @@ func parseUser(user string) string {
 }
 
 func showSomeTasks(tasks *map[string]Task) {
+	switch *exportFormat {
+	case "table":
+		showSomeTasksTable(tasks)
+	case "json":
+		showSomeTasksJson(tasks)
+	}
+}
+
+func showSomeTasksJson(tasks *map[string]Task) {
+	res, _ := json.Marshal(tasks)
+	fmt.Println(string(res))
+}
+
+func showSomeTasksTable(tasks *map[string]Task) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Name", "Title", "State", "Assignee", "Comments"})
 	for key, v := range *tasks {
@@ -342,7 +358,7 @@ func Lock(file string) error {
 			print("Someone has a lock; waiting...\n")
 			msg = true
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 

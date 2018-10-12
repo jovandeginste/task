@@ -7,24 +7,24 @@ import (
 )
 
 type TaskConfig struct {
-	Tasks map[string]Task
+	Tasks map[string]Task `json:"tasks" yaml:"tasks"`
 }
 
 type Task struct {
-	Title      string            `yaml:"title"`
-	Comments   []TaskComment     `yaml:"comments,omitempty"`
-	Assignee   string            `yaml:"assignee,omitempty"`
-	State      string            `yaml:"state,omitempty"`
-	AfterTasks []string          `yaml:"after,omitempty"`
-	CreatedAt  string            `yaml:"created_at,omitempty"`
-	UpdatedAt  string            `yaml:"updated_at,omitempty"`
-	Fields     map[string]string `yaml:"fields,omitempty"`
+	Title      string            `json:"title" yaml:"title"`
+	Comments   []TaskComment     `json:"comments,omitempty" yaml:"comments,omitempty"`
+	Assignee   string            `json:"assignee,omitempty" yaml:"assignee,omitempty"`
+	State      string            `json:"state,omitempty" yaml:"state,omitempty"`
+	AfterTasks []string          `json:"after,omitempty" yaml:"after,omitempty"`
+	CreatedAt  string            `json:"created_at,omitempty" yaml:"created_at,omitempty"`
+	UpdatedAt  string            `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	Fields     map[string]string `json:"fields,omitempty" yaml:"fields,omitempty"`
 }
 
 type TaskComment struct {
-	Comment string
-	By      string
-	At      string
+	Comment string `json:"comment" yaml:"comment"`
+	By      string `json:"by" yaml:"by"`
+	At      string `json:"at" yaml:"at"`
 }
 
 func (tc *TaskComment) HumanAt() string {
