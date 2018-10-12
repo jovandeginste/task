@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/olekukonko/tablewriter"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
@@ -15,6 +16,7 @@ import (
 var (
 	app             = kingpin.New("Task", "Task management").DefaultEnvars()
 	file            = app.Flag("file", "Filename of the tasks.").Required().String()
+	initFile        = app.Command("init", "Initialize the task file")
 	show            = app.Command("show", "Show tasks")
 	showName        = show.Arg("name", "Task name").String()
 	create          = app.Command("create", "Create task")
@@ -38,6 +40,8 @@ var (
 	unsetField      = app.Command("unset", "Set a custom field")
 	unsetFieldName  = unsetField.Arg("name", "Task name").Required().String()
 	unsetFieldFName = unsetField.Arg("field-name", "Field name").Required().String()
+
+	fileLock *flock.Flock
 )
 
 func main() {
@@ -46,12 +50,18 @@ func main() {
 	var command string
 
 	command = kingpin.MustParse(app.Parse(os.Args[1:]))
+	fileLock = flock.New(*file + ".lock")
+
+	if command == "init" {
+		initTaskFile(*file)
+	}
 
 	if conf, err = readTasks(*file); err != nil {
 		panic(err)
 	}
 
 	switch command {
+	case "init":
 	case "show":
 		if *showName == "" {
 			showTasks(&conf)
@@ -148,6 +158,7 @@ func deleteTask(file string, name string) {
 }
 func createTask(file string, name string, titleArray []string) {
 	title := strings.Join(titleArray, " ")
+	fileLock.Lock()
 	conf, _ := readTasks(file)
 	task := Task{
 		Title: title,
@@ -155,6 +166,7 @@ func createTask(file string, name string, titleArray []string) {
 	task.Update()
 	conf.Tasks[name] = task
 	writeTasks(file, &conf)
+	fileLock.Unlock()
 	showTask(name, task)
 }
 func setTaskState(file string, name string, state string) {
@@ -258,5 +270,19 @@ func readTasks(file string) (TaskConfig, error) {
 		panic(err)
 	}
 
+	if conf.Tasks == nil {
+		conf.Tasks = map[string]Task{}
+	}
+
 	return conf, nil
+}
+func initTaskFile(file string) {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		var conf TaskConfig
+		if err := writeTasks(file, &conf); err != nil {
+			panic(err)
+		}
+	} else {
+		print("File '" + file + "' already exists!\n")
+	}
 }
