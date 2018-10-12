@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -15,9 +16,13 @@ import (
 var (
 	app             = kingpin.New("Task", "Task management").DefaultEnvars()
 	file            = app.Flag("file", "Filename of the tasks.").Required().String()
+	showDone        = app.Flag("show-done", "Show tasks marked as done.").Bool()
 	initFile        = app.Command("init", "Initialize the task file")
+	stats           = app.Command("stats", "Show a bunch of statistics about the tasks")
 	show            = app.Command("show", "Show tasks")
 	showName        = show.Arg("name", "Task name").String()
+	search          = app.Command("search", "Search for tasks").Alias("find")
+	searchName      = search.Arg("string", "Part of task name or title").String()
 	create          = app.Command("create", "Create task")
 	createName      = create.Arg("name", "Task name").Required().String()
 	createTitle     = create.Arg("title", "Task title").Required().Strings()
@@ -74,6 +79,10 @@ func main() {
 			showTask(*showName, conf.Tasks[*showName])
 			showTaskComments(*showName, conf.Tasks[*showName])
 		}
+	case "stats":
+		showStats(&conf)
+	case "search":
+		searchTasks(*file, *searchName)
 	case "create":
 		createTask(*file, *createName, *createTitle)
 	case "delete":
@@ -115,7 +124,9 @@ func showSomeTasks(tasks *map[string]Task) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Name", "Title", "State", "Assignee", "Comments"})
 	for key, v := range *tasks {
-		table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
+		if *showDone || v.State != "done" {
+			table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
+		}
 	}
 	table.Render()
 }
@@ -145,6 +156,37 @@ func showTaskComments(name string, task Task) {
 		}
 		comments.Render()
 	}
+}
+
+func showStats(conf *TaskConfig) {
+	totalTasks := len(conf.Tasks)
+	states := map[string]int{}
+	var key string
+	for _, task := range conf.Tasks {
+		key = task.State
+		if key == "" {
+			key = "(unset)"
+		}
+		states[key] = states[key] + 1
+	}
+
+	for key, value := range states {
+		fmt.Printf("%10s: %10d/%-10d (%.2f%%)\n", key, value, totalTasks, 100*float64(value)/float64(totalTasks))
+	}
+}
+
+func searchTasks(file string, name string) {
+	tasks := map[string]Task{}
+	conf, _ := readTasks(file)
+
+	for id, task := range conf.Tasks {
+		if strings.Contains(id, name) ||
+			strings.Contains(task.Title, name) {
+			tasks[id] = task
+		}
+	}
+
+	showSomeTasks(&tasks)
 }
 
 func deleteTask(file string, name string) {
