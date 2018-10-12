@@ -352,7 +352,10 @@ func Lock(file string) error {
 	msg := false
 	for {
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			return os.Mkdir(file, 0700)
+			err := os.Mkdir(file, 0700)
+			if !os.IsExist(err) {
+				return err
+			}
 		}
 		if !msg {
 			print("Someone has a lock; waiting...\n")
