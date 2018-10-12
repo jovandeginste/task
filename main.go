@@ -123,6 +123,11 @@ func parseUser(user string) string {
 }
 
 func showSomeTasks(tasks *map[string]Task) {
+	for name, task := range *tasks {
+		if !*showDone && task.State == "done" {
+			delete(*tasks, name)
+		}
+	}
 	switch *exportFormat {
 	case "table":
 		showSomeTasksTable(tasks)
@@ -140,9 +145,7 @@ func showSomeTasksTable(tasks *map[string]Task) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Name", "Title", "State", "Assignee", "Comments"})
 	for key, v := range *tasks {
-		if *showDone || v.State != "done" {
-			table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
-		}
+		table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
 	}
 	table.Render()
 }
