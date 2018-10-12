@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/flock"
 	"github.com/olekukonko/tablewriter"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
@@ -41,7 +40,7 @@ var (
 	unsetFieldName  = unsetField.Arg("name", "Task name").Required().String()
 	unsetFieldFName = unsetField.Arg("field-name", "Field name").Required().String()
 
-	fileLock *flock.Flock
+	lockfile string
 )
 
 func main() {
@@ -50,7 +49,13 @@ func main() {
 	var command string
 
 	command = kingpin.MustParse(app.Parse(os.Args[1:]))
-	fileLock = flock.New(*file + ".lock")
+	lockfile = *file + ".lock"
+
+	err = Lock(lockfile)
+	if err != nil {
+		panic(err)
+	}
+	defer Unlock(lockfile)
 
 	if command == "init" {
 		initTaskFile(*file)
@@ -158,7 +163,6 @@ func deleteTask(file string, name string) {
 }
 func createTask(file string, name string, titleArray []string) {
 	title := strings.Join(titleArray, " ")
-	fileLock.Lock()
 	conf, _ := readTasks(file)
 	task := Task{
 		Title: title,
@@ -166,7 +170,6 @@ func createTask(file string, name string, titleArray []string) {
 	task.Update()
 	conf.Tasks[name] = task
 	writeTasks(file, &conf)
-	fileLock.Unlock()
 	showTask(name, task)
 }
 func setTaskState(file string, name string, state string) {
@@ -285,4 +288,22 @@ func initTaskFile(file string) {
 	} else {
 		print("File '" + file + "' already exists!\n")
 	}
+}
+
+func Lock(file string) error {
+	msg := false
+	for {
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			return os.Mkdir(file, 0700)
+		}
+		if !msg {
+			print("Someone has a lock; waiting...\n")
+			msg = true
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func Unlock(file string) error {
+	return os.Remove(file)
 }
