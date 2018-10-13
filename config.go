@@ -39,6 +39,15 @@ func (t *Task) HumanUpdatedAt() string {
 	return humanAt(t.UpdatedAt)
 }
 
+func (t *Task) GetField(field string) string {
+	for k, v := range t.Fields {
+		if k == field {
+			return v
+		}
+	}
+	return "(unset)"
+}
+
 func (t *Task) Update() {
 	now := time.Now().Format(time.RFC3339)
 	t.UpdatedAt = now

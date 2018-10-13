@@ -18,11 +18,13 @@ var (
 	app             = kingpin.New("Task", "Task management").DefaultEnvars()
 	file            = app.Flag("file", "Filename of the tasks.").Required().String()
 	showDone        = app.Flag("show-done", "Show tasks marked as done.").Short('d').Bool()
+	filterFields    = app.Flag("filter", "Filter by field=value").Strings()
 	exportFormat    = app.Flag("format", "Output format").Short('f').Default("table").Enum("table", "json")
 	initFile        = app.Command("init", "Initialize the task file")
 	stats           = app.Command("stats", "Show a bunch of statistics about the tasks")
 	show            = app.Command("show", "Show tasks")
 	showName        = show.Arg("name", "Task name").String()
+	showFields      = show.Flag("field", "Extra field to show").Strings()
 	search          = app.Command("search", "Search for tasks").Alias("find")
 	searchName      = search.Arg("string", "Part of task name or title").String()
 	create          = app.Command("create", "Create task")
@@ -48,6 +50,7 @@ var (
 	unsetFieldFName = unsetField.Arg("field-name", "Field name").Required().String()
 
 	lockfile string
+	filters  = map[string]string{}
 )
 
 func main() {
@@ -70,6 +73,13 @@ func main() {
 
 	if conf, err = readTasks(*file); err != nil {
 		panic(err)
+	}
+
+	for _, ff := range *filterFields {
+		split := strings.SplitN(ff, "=", 2)
+		if len(split) == 2 {
+			filters[split[0]] = split[1]
+		}
 	}
 
 	switch command {
@@ -127,6 +137,11 @@ func showSomeTasks(tasks *map[string]Task) {
 		if !*showDone && task.State == "done" {
 			delete(*tasks, name)
 		}
+		for k, v := range filters {
+			if task.GetField(k) != v {
+				delete(*tasks, name)
+			}
+		}
 	}
 	switch *exportFormat {
 	case "table":
@@ -144,10 +159,15 @@ func showSomeTasksJson(tasks *map[string]Task) {
 func showSomeTasksTable(tasks *map[string]Task) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
+	headers := append([]string{"Name", "Title", "State", "Assignee", "Comments"}, *showFields...)
 
-	table.SetHeader([]string{"Name", "Title", "State", "Assignee", "Comments"})
+	table.SetHeader(headers)
 	for key, v := range *tasks {
-		table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
+		fields := []string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))}
+		for _, f := range *showFields {
+			fields = append(fields, v.GetField(f))
+		}
+		table.Append(fields)
 	}
 	table.Render()
 }
@@ -163,8 +183,8 @@ func showTask(name string, task Task) {
 	table.Append([]string{"Comments", strconv.Itoa(len(task.Comments))})
 	table.Append([]string{"Created at", task.HumanCreatedAt()})
 	table.Append([]string{"Updated at", task.HumanUpdatedAt()})
-	for key, value := range task.Fields {
-		table.Append([]string{key, value})
+	for key, _ := range task.Fields {
+		table.Append([]string{key, task.GetField(key)})
 	}
 	table.Render()
 }
