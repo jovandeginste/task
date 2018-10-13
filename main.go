@@ -143,6 +143,8 @@ func showSomeTasksJson(tasks *map[string]Task) {
 
 func showSomeTasksTable(tasks *map[string]Task) {
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetColWidth(100)
+
 	table.SetHeader([]string{"Name", "Title", "State", "Assignee", "Comments"})
 	for key, v := range *tasks {
 		table.Append([]string{key, v.Title, v.State, v.Assignee, strconv.Itoa(len(v.Comments))})
@@ -152,6 +154,7 @@ func showSomeTasksTable(tasks *map[string]Task) {
 
 func showTask(name string, task Task) {
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetColWidth(100)
 	table.SetAlignment(tablewriter.ALIGN_LEFT) // Set Alignment
 	table.SetHeader([]string{"", "Showing task '" + name + "'"})
 	table.Append([]string{"Title", task.Title})
@@ -169,6 +172,7 @@ func showTask(name string, task Task) {
 func showTaskComments(name string, task Task) {
 	if len(task.Comments) > 0 {
 		comments := tablewriter.NewWriter(os.Stdout)
+		comments.SetColWidth(100)
 		comments.SetHeader([]string{"", "Comments for task '" + name + "'", ""})
 		for _, comment := range task.Comments {
 			comments.Append([]string{comment.By, comment.Comment, comment.HumanAt()})
