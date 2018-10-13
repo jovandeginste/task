@@ -19,12 +19,12 @@ var (
 	file            = app.Flag("file", "Filename of the tasks.").Required().String()
 	showDone        = app.Flag("show-done", "Show tasks marked as done.").Short('d').Bool()
 	filterFields    = app.Flag("filter", "Filter by field=value").Strings()
+	showFields      = app.Flag("field", "Extra field to show").Strings()
 	exportFormat    = app.Flag("format", "Output format").Short('f').Default("table").Enum("table", "json")
 	initFile        = app.Command("init", "Initialize the task file")
 	stats           = app.Command("stats", "Show a bunch of statistics about the tasks")
 	show            = app.Command("show", "Show tasks")
 	showName        = show.Arg("name", "Task name").String()
-	showFields      = show.Flag("field", "Extra field to show").Strings()
 	search          = app.Command("search", "Search for tasks").Alias("find")
 	searchName      = search.Arg("string", "Part of task name or title").String()
 	create          = app.Command("create", "Create task")
@@ -202,19 +202,57 @@ func showTaskComments(name string, task Task) {
 }
 
 func showStats(conf *TaskConfig) {
-	totalTasks := len(conf.Tasks)
-	states := map[string]int{}
+	results := map[string]int{}
 	var key string
 	for _, task := range conf.Tasks {
 		key = task.State
 		if key == "" {
 			key = "(unset)"
 		}
-		states[key] = states[key] + 1
+		results[key] = results[key] + 1
+	}
+	sortPrint("State", results)
+	for _, field := range *showFields {
+		values := allValuesForField(&conf.Tasks, field)
+		for _, value := range values {
+			results := map[string]int{}
+			for _, task := range conf.Tasks {
+				if task.GetField(field) == value {
+					key = task.State
+					if key == "" {
+						key = "(unset)"
+					}
+					results[key] = results[key] + 1
+				}
+			}
+			sortPrint(field+"="+value, results)
+		}
+	}
+}
+
+func allValuesForField(tasks *map[string]Task, field string) []string {
+	result := []string{}
+	has := map[string]bool{}
+	var value string
+	for _, task := range *tasks {
+		value = task.GetField(field)
+		if _, ok := has[value]; !ok {
+			result = append(result, value)
+			has[value] = true
+		}
 	}
 
-	for key, value := range states {
-		fmt.Printf("%10s: %10d/%-10d (%.2f%%)\n", key, value, totalTasks, 100*float64(value)/float64(totalTasks))
+	return result
+}
+
+func sortPrint(title string, results map[string]int) {
+	total := 0
+	for _, value := range results {
+		total += value
+	}
+	print("Grouped by '" + title + "'; total: " + strconv.Itoa(total) + "\n")
+	for key, value := range results {
+		fmt.Printf("%10s: %10d/%-10d (%.2f%%)\n", key, value, total, 100*float64(value)/float64(total))
 	}
 }
 
